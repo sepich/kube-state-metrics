@@ -23,7 +23,7 @@ import (
 	"k8s.io/kube-state-metrics/v2/pkg/metric"
 	generator "k8s.io/kube-state-metrics/v2/pkg/metric_generator"
 
-	networkingv1 "k8s.io/api/networking/v1"
+	networkingv1 "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
@@ -113,7 +113,7 @@ func ingressMetricFamilies(allowLabelsList []string) []generator.FamilyGenerator
 						for _, path := range rule.HTTP.Paths {
 							ms = append(ms, &metric.Metric{
 								LabelKeys:   []string{"host", "path", "service_name", "service_port"},
-								LabelValues: []string{rule.Host, path.Path, path.Backend.Service.Name, strconv.Itoa(int(path.Backend.Service.Port.Number))},
+								LabelValues: []string{rule.Host, path.Path, path.Backend.ServiceName, strconv.Itoa(int(path.Backend.ServicePort.IntVal))},
 								Value:       1,
 							})
 						}
@@ -166,10 +166,10 @@ func wrapIngressFunc(f func(*networkingv1.Ingress) *metric.Family) func(interfac
 func createIngressListWatch(kubeClient clientset.Interface, ns string) cache.ListerWatcher {
 	return &cache.ListWatch{
 		ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
-			return kubeClient.NetworkingV1().Ingresses(ns).List(context.TODO(), opts)
+			return kubeClient.NetworkingV1beta1().Ingresses(ns).List(context.TODO(), opts)
 		},
 		WatchFunc: func(opts metav1.ListOptions) (watch.Interface, error) {
-			return kubeClient.NetworkingV1().Ingresses(ns).Watch(context.TODO(), opts)
+			return kubeClient.NetworkingV1beta1().Ingresses(ns).Watch(context.TODO(), opts)
 		},
 	}
 }

@@ -18,6 +18,7 @@ package store
 
 import (
 	"context"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	"reflect"
 	"sort"
 	"strconv"
@@ -243,7 +244,7 @@ func (b *Builder) buildHPAStore() cache.Store {
 }
 
 func (b *Builder) buildIngressStore() cache.Store {
-	return b.buildStoreFunc(ingressMetricFamilies(b.allowLabelsList["ingresses"]), &networkingv1.Ingress{}, createIngressListWatch)
+	return b.buildStoreFunc(ingressMetricFamilies(b.allowLabelsList["ingresses"]), &networkingv1beta1.Ingress{}, createIngressListWatch)
 }
 
 func (b *Builder) buildJobStore() cache.Store {

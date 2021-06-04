@@ -22,7 +22,7 @@ import (
 	"k8s.io/kube-state-metrics/v2/pkg/metric"
 	generator "k8s.io/kube-state-metrics/v2/pkg/metric_generator"
 
-	certv1 "k8s.io/api/certificates/v1"
+	certv1 "k8s.io/api/certificates/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
@@ -124,10 +124,10 @@ func wrapCSRFunc(f func(*certv1.CertificateSigningRequest) *metric.Family) func(
 func createCSRListWatch(kubeClient clientset.Interface, ns string) cache.ListerWatcher {
 	return &cache.ListWatch{
 		ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
-			return kubeClient.CertificatesV1().CertificateSigningRequests().List(context.TODO(), opts)
+			return kubeClient.CertificatesV1beta1().CertificateSigningRequests().List(context.TODO(), opts)
 		},
 		WatchFunc: func(opts metav1.ListOptions) (watch.Interface, error) {
-			return kubeClient.CertificatesV1().CertificateSigningRequests().Watch(context.TODO(), opts)
+			return kubeClient.CertificatesV1beta1().CertificateSigningRequests().Watch(context.TODO(), opts)
 		},
 	}
 }
