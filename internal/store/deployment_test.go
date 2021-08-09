@@ -53,6 +53,8 @@ func TestDeploymentStore(t *testing.T) {
 		# TYPE kube_deployment_spec_replicas gauge
 		# HELP kube_deployment_status_replicas The number of replicas per deployment.
 		# TYPE kube_deployment_status_replicas gauge
+		# HELP kube_deployment_status_replicas_ready The number of ready replicas per deployment.
+		# TYPE kube_deployment_status_replicas_ready gauge
 		# HELP kube_deployment_status_replicas_available The number of available replicas per deployment.
 		# TYPE kube_deployment_status_replicas_available gauge
 		# HELP kube_deployment_status_replicas_unavailable The number of unavailable replicas per deployment.
@@ -67,8 +69,6 @@ func TestDeploymentStore(t *testing.T) {
 		# TYPE kube_deployment_spec_strategy_rollingupdate_max_unavailable gauge
 		# HELP kube_deployment_spec_strategy_rollingupdate_max_surge Maximum number of replicas that can be scheduled above the desired number of replicas during a rolling update of a deployment.
 		# TYPE kube_deployment_spec_strategy_rollingupdate_max_surge gauge
-		# HELP kube_deployment_labels Kubernetes labels converted to Prometheus labels.
-		# TYPE kube_deployment_labels gauge
 	`
 	cases := []generateMetricsTestCase{
 		{
@@ -84,6 +84,7 @@ func TestDeploymentStore(t *testing.T) {
 				},
 				Status: v1.DeploymentStatus{
 					Replicas:            15,
+					ReadyReplicas:       10,
 					AvailableReplicas:   10,
 					UnavailableReplicas: 5,
 					UpdatedReplicas:     2,
@@ -105,7 +106,6 @@ func TestDeploymentStore(t *testing.T) {
 			},
 			Want: metadata + `
         kube_deployment_created{deployment="depl1",namespace="ns1"} 1.5e+09
-        kube_deployment_labels{deployment="depl1",namespace="ns1"} 1
         kube_deployment_metadata_generation{deployment="depl1",namespace="ns1"} 21
         kube_deployment_spec_paused{deployment="depl1",namespace="ns1"} 0
         kube_deployment_spec_replicas{deployment="depl1",namespace="ns1"} 200
@@ -116,12 +116,13 @@ func TestDeploymentStore(t *testing.T) {
         kube_deployment_status_replicas_unavailable{deployment="depl1",namespace="ns1"} 5
         kube_deployment_status_replicas_updated{deployment="depl1",namespace="ns1"} 2
         kube_deployment_status_replicas{deployment="depl1",namespace="ns1"} 15
+        kube_deployment_status_replicas_ready{deployment="depl1",namespace="ns1"} 10
         kube_deployment_status_condition{deployment="depl1",namespace="ns1",condition="Available",status="true"} 1
         kube_deployment_status_condition{deployment="depl1",namespace="ns1",condition="Progressing",status="true"} 1
         kube_deployment_status_condition{deployment="depl1",namespace="ns1",condition="Available",status="false"} 0
         kube_deployment_status_condition{deployment="depl1",namespace="ns1",condition="Progressing",status="false"} 0
         kube_deployment_status_condition{deployment="depl1",namespace="ns1",condition="Available",status="unknown"} 0
-        kube_deployment_status_condition{deployment="depl1",namespace="ns1",condition="Progressing",status="unknown"} 0
+		kube_deployment_status_condition{deployment="depl1",namespace="ns1",condition="Progressing",status="unknown"} 0
 `,
 		},
 		{
@@ -132,10 +133,15 @@ func TestDeploymentStore(t *testing.T) {
 					Labels: map[string]string{
 						"app": "example2",
 					},
+					Annotations: map[string]string{
+						"allowlisted": "true",
+						"denylisted":  "true",
+					},
 					Generation: 14,
 				},
 				Status: v1.DeploymentStatus{
 					Replicas:            10,
+					ReadyReplicas:       5,
 					AvailableReplicas:   5,
 					UnavailableReplicas: 0,
 					UpdatedReplicas:     1,
@@ -158,7 +164,11 @@ func TestDeploymentStore(t *testing.T) {
 				},
 			},
 			Want: metadata + `
-       	kube_deployment_labels{deployment="depl2",namespace="ns2"} 1
+		# HELP kube_deployment_labels Kubernetes labels converted to Prometheus labels.
+		# TYPE kube_deployment_labels gauge
+		# HELP kube_deployment_annotations Kubernetes annotations converted to Prometheus labels.
+		# TYPE kube_deployment_annotations gauge
+       	kube_deployment_labels{deployment="depl2",label_app="example2",namespace="ns2"} 1
         kube_deployment_metadata_generation{deployment="depl2",namespace="ns2"} 14
         kube_deployment_spec_paused{deployment="depl2",namespace="ns2"} 1
         kube_deployment_spec_replicas{deployment="depl2",namespace="ns2"} 5
@@ -169,6 +179,7 @@ func TestDeploymentStore(t *testing.T) {
         kube_deployment_status_replicas_unavailable{deployment="depl2",namespace="ns2"} 0
         kube_deployment_status_replicas_updated{deployment="depl2",namespace="ns2"} 1
         kube_deployment_status_replicas{deployment="depl2",namespace="ns2"} 10
+        kube_deployment_status_replicas_ready{deployment="depl2",namespace="ns2"} 5
         kube_deployment_status_condition{deployment="depl2",namespace="ns2",condition="Available",status="true"} 0
         kube_deployment_status_condition{deployment="depl2",namespace="ns2",condition="Progressing",status="true"} 0
         kube_deployment_status_condition{deployment="depl2",namespace="ns2",condition="ReplicaFailure",status="true"} 1
@@ -177,14 +188,17 @@ func TestDeploymentStore(t *testing.T) {
         kube_deployment_status_condition{deployment="depl2",namespace="ns2",condition="ReplicaFailure",status="false"} 0
         kube_deployment_status_condition{deployment="depl2",namespace="ns2",condition="Available",status="unknown"} 0
         kube_deployment_status_condition{deployment="depl2",namespace="ns2",condition="Progressing",status="unknown"} 0
-        kube_deployment_status_condition{deployment="depl2",namespace="ns2",condition="ReplicaFailure",status="unknown"} 0
+		kube_deployment_status_condition{deployment="depl2",namespace="ns2",condition="ReplicaFailure",status="unknown"} 0
+		kube_deployment_annotations{annotation_allowlisted="true",deployment="depl2",namespace="ns2"} 1
 `,
+			AllowLabelsList:      []string{"app"},
+			AllowAnnotationsList: []string{"allowlisted"},
 		},
 	}
 
 	for i, c := range cases {
-		c.Func = generator.ComposeMetricGenFuncs(deploymentMetricFamilies(nil))
-		c.Headers = generator.ExtractMetricFamilyHeaders(deploymentMetricFamilies(nil))
+		c.Func = generator.ComposeMetricGenFuncs(deploymentMetricFamilies(c.AllowLabelsList, c.AllowAnnotationsList))
+		c.Headers = generator.ExtractMetricFamilyHeaders(deploymentMetricFamilies(c.AllowLabelsList, c.AllowAnnotationsList))
 		if err := c.run(); err != nil {
 			t.Errorf("unexpected collecting result in %vth run:\n%s", i, err)
 		}

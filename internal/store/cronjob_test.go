@@ -33,6 +33,8 @@ var (
 	SuspendTrue                      = true
 	SuspendFalse                     = false
 	StartingDeadlineSeconds300 int64 = 300
+	SuccessfulJobHistoryLimit3 int32 = 3
+	FailedJobHistoryLimit1     int32 = 1
 
 	// "1520742896" is "2018/3/11 12:34:56" in "Asia/Shanghai".
 	ActiveRunningCronJob1LastScheduleTime          = time.Unix(1520742896, 0)
@@ -116,41 +118,46 @@ func TestCronJobStore(t *testing.T) {
 					LastScheduleTime: &metav1.Time{Time: ActiveRunningCronJob1LastScheduleTime},
 				},
 				Spec: batchv1beta1.CronJobSpec{
-					StartingDeadlineSeconds: &StartingDeadlineSeconds300,
-					ConcurrencyPolicy:       "Forbid",
-					Suspend:                 &SuspendFalse,
-					Schedule:                "0 */6 * * *",
+					StartingDeadlineSeconds:    &StartingDeadlineSeconds300,
+					ConcurrencyPolicy:          "Forbid",
+					Suspend:                    &SuspendFalse,
+					Schedule:                   "0 */6 * * *",
+					SuccessfulJobsHistoryLimit: &SuccessfulJobHistoryLimit3,
+					FailedJobsHistoryLimit:     &FailedJobHistoryLimit1,
 				},
 			},
 			Want: `
 				# HELP kube_cronjob_created Unix creation timestamp
 				# HELP kube_cronjob_info Info about cronjob.
-				# HELP kube_cronjob_labels Kubernetes labels converted to Prometheus labels.
 				# HELP kube_cronjob_next_schedule_time Next time the cronjob should be scheduled. The time after lastScheduleTime, or after the cron job's creation time if it's never been scheduled. Use this to determine if the job is delayed.
+				# HELP kube_cronjob_spec_failed_job_history_limit Failed job history limit tells the controller how many failed jobs should be preserved.
 				# HELP kube_cronjob_spec_starting_deadline_seconds Deadline in seconds for starting the job if it misses scheduled time for any reason.
+        		# HELP kube_cronjob_spec_successful_job_history_limit Successful job history limit tells the controller how many completed jobs should be preserved.
 				# HELP kube_cronjob_spec_suspend Suspend flag tells the controller to suspend subsequent executions.
 				# HELP kube_cronjob_status_active Active holds pointers to currently running jobs.
                 # HELP kube_cronjob_metadata_resource_version Resource version representing a specific version of the cronjob.
 				# HELP kube_cronjob_status_last_schedule_time LastScheduleTime keeps information of when was the last time the job was successfully scheduled.
 				# TYPE kube_cronjob_created gauge
 				# TYPE kube_cronjob_info gauge
-				# TYPE kube_cronjob_labels gauge
 				# TYPE kube_cronjob_next_schedule_time gauge
+				# TYPE kube_cronjob_spec_failed_job_history_limit gauge
 				# TYPE kube_cronjob_spec_starting_deadline_seconds gauge
+				# TYPE kube_cronjob_spec_successful_job_history_limit gauge
 				# TYPE kube_cronjob_spec_suspend gauge
 				# TYPE kube_cronjob_status_active gauge
                 # TYPE kube_cronjob_metadata_resource_version gauge
 				# TYPE kube_cronjob_status_last_schedule_time gauge
 				kube_cronjob_info{concurrency_policy="Forbid",cronjob="ActiveRunningCronJob1",namespace="ns1",schedule="0 */6 * * *"} 1
-				kube_cronjob_labels{cronjob="ActiveRunningCronJob1",namespace="ns1"} 1
+				kube_cronjob_spec_failed_job_history_limit{cronjob="ActiveRunningCronJob1",namespace="ns1"} 1
 				kube_cronjob_spec_starting_deadline_seconds{cronjob="ActiveRunningCronJob1",namespace="ns1"} 300
+				kube_cronjob_spec_successful_job_history_limit{cronjob="ActiveRunningCronJob1",namespace="ns1"} 3
 				kube_cronjob_spec_suspend{cronjob="ActiveRunningCronJob1",namespace="ns1"} 0
 				kube_cronjob_status_active{cronjob="ActiveRunningCronJob1",namespace="ns1"} 2
                 kube_cronjob_metadata_resource_version{cronjob="ActiveRunningCronJob1",namespace="ns1"} 11111
 				kube_cronjob_status_last_schedule_time{cronjob="ActiveRunningCronJob1",namespace="ns1"} 1.520742896e+09
 ` + fmt.Sprintf("kube_cronjob_next_schedule_time{cronjob=\"ActiveRunningCronJob1\",namespace=\"ns1\"} %ve+09\n",
 				float64(ActiveRunningCronJob1NextScheduleTime.Unix())/math.Pow10(9)),
-			MetricNames: []string{"kube_cronjob_next_schedule_time", "kube_cronjob_spec_starting_deadline_seconds", "kube_cronjob_status_active", "kube_cronjob_metadata_resource_version", "kube_cronjob_spec_suspend", "kube_cronjob_info", "kube_cronjob_created", "kube_cronjob_labels", "kube_cronjob_status_last_schedule_time"},
+			MetricNames: []string{"kube_cronjob_next_schedule_time", "kube_cronjob_spec_starting_deadline_seconds", "kube_cronjob_status_active", "kube_cronjob_metadata_resource_version", "kube_cronjob_spec_suspend", "kube_cronjob_info", "kube_cronjob_created", "kube_cronjob_status_last_schedule_time", "kube_cronjob_spec_successful_job_history_limit", "kube_cronjob_spec_failed_job_history_limit"},
 		},
 		{
 			Obj: &batchv1beta1.CronJob{
@@ -168,38 +175,43 @@ func TestCronJobStore(t *testing.T) {
 					LastScheduleTime: &metav1.Time{Time: SuspendedCronJob1LastScheduleTime},
 				},
 				Spec: batchv1beta1.CronJobSpec{
-					StartingDeadlineSeconds: &StartingDeadlineSeconds300,
-					ConcurrencyPolicy:       "Forbid",
-					Suspend:                 &SuspendTrue,
-					Schedule:                "0 */3 * * *",
+					StartingDeadlineSeconds:    &StartingDeadlineSeconds300,
+					ConcurrencyPolicy:          "Forbid",
+					Suspend:                    &SuspendTrue,
+					Schedule:                   "0 */3 * * *",
+					SuccessfulJobsHistoryLimit: &SuccessfulJobHistoryLimit3,
+					FailedJobsHistoryLimit:     &FailedJobHistoryLimit1,
 				},
 			},
 			Want: `
 				# HELP kube_cronjob_created Unix creation timestamp
 				# HELP kube_cronjob_info Info about cronjob.
-				# HELP kube_cronjob_labels Kubernetes labels converted to Prometheus labels.
+				# HELP kube_cronjob_spec_failed_job_history_limit Failed job history limit tells the controller how many failed jobs should be preserved.
 				# HELP kube_cronjob_spec_starting_deadline_seconds Deadline in seconds for starting the job if it misses scheduled time for any reason.
+				# HELP kube_cronjob_spec_successful_job_history_limit Successful job history limit tells the controller how many completed jobs should be preserved.
 				# HELP kube_cronjob_spec_suspend Suspend flag tells the controller to suspend subsequent executions.
 				# HELP kube_cronjob_status_active Active holds pointers to currently running jobs.
                 # HELP kube_cronjob_metadata_resource_version Resource version representing a specific version of the cronjob.
 				# HELP kube_cronjob_status_last_schedule_time LastScheduleTime keeps information of when was the last time the job was successfully scheduled.
 				# TYPE kube_cronjob_created gauge
 				# TYPE kube_cronjob_info gauge
-				# TYPE kube_cronjob_labels gauge
+				# TYPE kube_cronjob_spec_failed_job_history_limit gauge
 				# TYPE kube_cronjob_spec_starting_deadline_seconds gauge
+				# TYPE kube_cronjob_spec_successful_job_history_limit gauge
 				# TYPE kube_cronjob_spec_suspend gauge
 				# TYPE kube_cronjob_status_active gauge
                 # TYPE kube_cronjob_metadata_resource_version gauge
 				# TYPE kube_cronjob_status_last_schedule_time gauge
 				kube_cronjob_info{concurrency_policy="Forbid",cronjob="SuspendedCronJob1",namespace="ns1",schedule="0 */3 * * *"} 1
-				kube_cronjob_labels{cronjob="SuspendedCronJob1",namespace="ns1"} 1
+				kube_cronjob_spec_failed_job_history_limit{cronjob="SuspendedCronJob1",namespace="ns1"} 1
 				kube_cronjob_spec_starting_deadline_seconds{cronjob="SuspendedCronJob1",namespace="ns1"} 300
+				kube_cronjob_spec_successful_job_history_limit{cronjob="SuspendedCronJob1",namespace="ns1"} 3
 				kube_cronjob_spec_suspend{cronjob="SuspendedCronJob1",namespace="ns1"} 1
 				kube_cronjob_status_active{cronjob="SuspendedCronJob1",namespace="ns1"} 0
 				kube_cronjob_metadata_resource_version{cronjob="SuspendedCronJob1",namespace="ns1"} 22222
 				kube_cronjob_status_last_schedule_time{cronjob="SuspendedCronJob1",namespace="ns1"} 1.520762696e+09
 `,
-			MetricNames: []string{"kube_cronjob_spec_starting_deadline_seconds", "kube_cronjob_status_active", "kube_cronjob_metadata_resource_version", "kube_cronjob_spec_suspend", "kube_cronjob_info", "kube_cronjob_created", "kube_cronjob_labels", "kube_cronjob_status_last_schedule_time"},
+			MetricNames: []string{"kube_cronjob_spec_starting_deadline_seconds", "kube_cronjob_status_active", "kube_cronjob_metadata_resource_version", "kube_cronjob_spec_suspend", "kube_cronjob_info", "kube_cronjob_created", "kube_cronjob_status_last_schedule_time", "kube_cronjob_spec_successful_job_history_limit", "kube_cronjob_spec_failed_job_history_limit"},
 		},
 		{
 			Obj: &batchv1beta1.CronJob{
@@ -212,24 +224,34 @@ func TestCronJobStore(t *testing.T) {
 					Labels: map[string]string{
 						"app": "example-active-no-last-scheduled-1",
 					},
+					Annotations: map[string]string{
+						"allowlisted": "true",
+						"denylisted":  "true",
+					},
 				},
 				Status: batchv1beta1.CronJobStatus{
 					Active:           []v1.ObjectReference{},
 					LastScheduleTime: nil,
 				},
 				Spec: batchv1beta1.CronJobSpec{
-					StartingDeadlineSeconds: &StartingDeadlineSeconds300,
-					ConcurrencyPolicy:       "Forbid",
-					Suspend:                 &SuspendFalse,
-					Schedule:                "25 * * * *",
+					StartingDeadlineSeconds:    &StartingDeadlineSeconds300,
+					ConcurrencyPolicy:          "Forbid",
+					Suspend:                    &SuspendFalse,
+					Schedule:                   "25 * * * *",
+					SuccessfulJobsHistoryLimit: &SuccessfulJobHistoryLimit3,
+					FailedJobsHistoryLimit:     &FailedJobHistoryLimit1,
 				},
 			},
 			Want: `
+			    # HELP kube_cronjob_annotations Kubernetes annotations converted to Prometheus labels.
+			    # TYPE kube_cronjob_annotations gauge
 				# HELP kube_cronjob_created Unix creation timestamp
 				# HELP kube_cronjob_info Info about cronjob.
 				# HELP kube_cronjob_labels Kubernetes labels converted to Prometheus labels.
 				# HELP kube_cronjob_next_schedule_time Next time the cronjob should be scheduled. The time after lastScheduleTime, or after the cron job's creation time if it's never been scheduled. Use this to determine if the job is delayed.
+				# HELP kube_cronjob_spec_failed_job_history_limit Failed job history limit tells the controller how many failed jobs should be preserved.
 				# HELP kube_cronjob_spec_starting_deadline_seconds Deadline in seconds for starting the job if it misses scheduled time for any reason.
+				# HELP kube_cronjob_spec_successful_job_history_limit Successful job history limit tells the controller how many completed jobs should be preserved.
 				# HELP kube_cronjob_spec_suspend Suspend flag tells the controller to suspend subsequent executions.
 				# HELP kube_cronjob_status_active Active holds pointers to currently running jobs.
                 # HELP kube_cronjob_metadata_resource_version Resource version representing a specific version of the cronjob.
@@ -237,26 +259,33 @@ func TestCronJobStore(t *testing.T) {
 				# TYPE kube_cronjob_info gauge
 				# TYPE kube_cronjob_labels gauge
 				# TYPE kube_cronjob_next_schedule_time gauge
+				# TYPE kube_cronjob_spec_failed_job_history_limit gauge
 				# TYPE kube_cronjob_spec_starting_deadline_seconds gauge
+				# TYPE kube_cronjob_spec_successful_job_history_limit gauge
 				# TYPE kube_cronjob_spec_suspend gauge
 				# TYPE kube_cronjob_status_active gauge
                 # TYPE kube_cronjob_metadata_resource_version gauge
 				kube_cronjob_spec_starting_deadline_seconds{cronjob="ActiveCronJob1NoLastScheduled",namespace="ns1"} 300
 				kube_cronjob_status_active{cronjob="ActiveCronJob1NoLastScheduled",namespace="ns1"} 0
 				kube_cronjob_metadata_resource_version{cronjob="ActiveCronJob1NoLastScheduled",namespace="ns1"} 33333
+				kube_cronjob_spec_failed_job_history_limit{cronjob="ActiveCronJob1NoLastScheduled",namespace="ns1"} 1
+				kube_cronjob_spec_successful_job_history_limit{cronjob="ActiveCronJob1NoLastScheduled",namespace="ns1"} 3
 				kube_cronjob_spec_suspend{cronjob="ActiveCronJob1NoLastScheduled",namespace="ns1"} 0
 				kube_cronjob_info{concurrency_policy="Forbid",cronjob="ActiveCronJob1NoLastScheduled",namespace="ns1",schedule="25 * * * *"} 1
 				kube_cronjob_created{cronjob="ActiveCronJob1NoLastScheduled",namespace="ns1"} 1.520766296e+09
-				kube_cronjob_labels{cronjob="ActiveCronJob1NoLastScheduled",namespace="ns1"} 1
+				kube_cronjob_labels{cronjob="ActiveCronJob1NoLastScheduled",label_app="example-active-no-last-scheduled-1",namespace="ns1"} 1
+				kube_cronjob_annotations{cronjob="ActiveCronJob1NoLastScheduled",namespace="ns1",annotation_allowlisted="true"} 1
 ` +
 				fmt.Sprintf("kube_cronjob_next_schedule_time{cronjob=\"ActiveCronJob1NoLastScheduled\",namespace=\"ns1\"} %ve+09\n",
 					float64(ActiveCronJob1NoLastScheduledNextScheduleTime.Unix())/math.Pow10(9)),
-			MetricNames: []string{"kube_cronjob_next_schedule_time", "kube_cronjob_spec_starting_deadline_seconds", "kube_cronjob_status_active", "kube_cronjob_metadata_resource_version", "kube_cronjob_spec_suspend", "kube_cronjob_info", "kube_cronjob_created", "kube_cronjob_labels"},
+			MetricNames:          []string{"kube_cronjob_next_schedule_time", "kube_cronjob_spec_starting_deadline_seconds", "kube_cronjob_status_active", "kube_cronjob_metadata_resource_version", "kube_cronjob_spec_suspend", "kube_cronjob_info", "kube_cronjob_created", "kube_cronjob_labels", "kube_cronjob_annotations", "kube_cronjob_spec_successful_job_history_limit", "kube_cronjob_spec_failed_job_history_limit"},
+			AllowLabelsList:      []string{"app"},
+			AllowAnnotationsList: []string{"allowlisted"},
 		},
 	}
 	for i, c := range cases {
-		c.Func = generator.ComposeMetricGenFuncs(cronJobMetricFamilies(nil))
-		c.Headers = generator.ExtractMetricFamilyHeaders(cronJobMetricFamilies(nil))
+		c.Func = generator.ComposeMetricGenFuncs(cronJobMetricFamilies(c.AllowLabelsList, c.AllowAnnotationsList))
+		c.Headers = generator.ExtractMetricFamilyHeaders(cronJobMetricFamilies(c.AllowLabelsList, c.AllowAnnotationsList))
 		if err := c.run(); err != nil {
 			t.Errorf("unexpected collecting result in %vth run:\n%s", i, err)
 		}
